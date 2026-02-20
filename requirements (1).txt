@@ -1,0 +1,5 @@
+flask>=2.0.0
+scikit-learn>=1.0.0
+nltk>=3.7
+rapidfuzz>=3.0.0
+werkzeug>=2.0.0

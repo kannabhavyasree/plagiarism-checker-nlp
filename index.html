@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PlagiaScope — AI Plagiarism Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #0a0c10;
+  --surface:   #111318;
+  --card:      #161a22;
+  --border:    #1e2330;
+  --border2:   #2a3040;
+  --text:      #e8eaf0;
+  --muted:     #6b7590;
+  --accent:    #4f8ef7;
+  --accent2:   #7c3aed;
+  --high:      #f04040;
+  --medium:    #f07820;
+  --low:       #e8b020;
+  --clear:     #30c060;
+  --mono:      'Space Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scanlines overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 1000;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.04) 2px,
+    rgba(0,0,0,0.04) 4px
+  );
+}
+
+/* ── Header ── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,12,16,0.92);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.logo-text {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.logo-sub {
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+.header-badge {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 70px 20px 50px;
+  position: relative;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 300px;
+  background: radial-gradient(ellipse at center, rgba(79,142,247,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  margin-bottom: 16px;
+}
+.hero h1 span {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero p {
+  color: var(--muted);
+  font-size: 1rem;
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ── Main layout ── */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── Upload Panel ── */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.panel-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panel-header .step {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.panel-body { padding: 24px; }
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 4px;
+  width: fit-content;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 8px 20px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+
+/* ── Drop Zone ── */
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: 12px;
+  padding: 50px 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.04);
+}
+.drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.drop-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.drop-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 16px; }
+.drop-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  border: none;
+  padding: 9px 22px;
+  border-radius: 8px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.drop-btn:hover { opacity: 0.85; }
+#file-input { display: none; }
+
+/* ── File list ── */
+.file-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.file-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.file-icon { font-size: 1.1rem; }
+.file-name { flex: 1; font-family: var(--mono); font-size: 0.8rem; color: var(--text); }
+.file-size { color: var(--muted); font-size: 0.78rem; }
+.file-remove {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1rem; padding: 0 4px;
+  transition: color 0.2s;
+}
+.file-remove:hover { color: var(--high); }
+
+/* ── Paste text ── */
+.paste-area { display: flex; flex-direction: column; gap: 14px; }
+.paste-doc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: slideIn 0.2s ease;
+}
+.paste-doc-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.doc-num {
+  width: 22px; height: 22px;
+  background: var(--border2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.paste-name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  outline: none;
+}
+.paste-name-input::placeholder { color: var(--muted); }
+.paste-remove {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.paste-remove:hover { color: var(--high); }
+.paste-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+}
+.paste-textarea::placeholder { color: var(--muted); }
+.add-doc-btn {
+  background: transparent;
+  border: 1px dashed var(--border2);
+  color: var(--muted);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  width: 100%;
+  transition: all 0.2s;
+  text-align: center;
+}
+.add-doc-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,142,247,0.04);
+}
+
+/* ── Analyze Button ── */
+.analyze-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.analyze-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+}
+.analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(79,142,247,0.35); }
+.analyze-btn:active { transform: translateY(0); }
+.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ── Loading ── */
+.loading {
+  display: none;
+  text-align: center;
+  padding: 60px 20px;
+}
+.loading.show { display: block; }
+.scanner {
+  width: 80px; height: 80px;
+  margin: 0 auto 20px;
+  position: relative;
+}
+.scanner-ring {
+  position: absolute; inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.scanner-ring:nth-child(2) {
+  inset: 8px;
+  border-top-color: var(--accent2);
+  animation-duration: 0.8s;
+  animation-direction: reverse;
+}
+.scanner-dot {
+  position: absolute;
+  inset: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50%       { opacity: 1;   transform: scale(1.1); }
+}
+.loading-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-family: var(--mono);
+  letter-spacing: 1px;
+}
+
+/* ── Error ── */
+.error-box {
+  display: none;
+  background: rgba(240,64,64,0.08);
+  border: 1px solid rgba(240,64,64,0.3);
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: #ff7070;
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+.error-box.show { display: block; }
+
+/* ── Results ── */
+#results { display: none; }
+#results.show { display: block; }
+
+/* ── Summary Grid ── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-num {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.stat-card.s-high   .stat-num { color: var(--high); }
+.stat-card.s-medium .stat-num { color: var(--medium); }
+.stat-card.s-low    .stat-num { color: var(--low); }
+.stat-card.s-clear  .stat-num { color: var(--clear); }
+.stat-card.s-total  .stat-num { color: var(--accent); }
+
+/* ── Timestamp bar ── */
+.result-meta {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Result Cards ── */
+.result-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.result-card:hover { border-color: var(--border2); }
+
+.result-card.level-HIGH   { border-left: 3px solid var(--high); }
+.result-card.level-MEDIUM { border-left: 3px solid var(--medium); }
+.result-card.level-LOW    { border-left: 3px solid var(--low); }
+.result-card.level-CLEAR  { border-left: 3px solid var(--clear); }
+
+.result-top {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.result-top:hover { background: rgba(255,255,255,0.02); }
+
+.result-files {
+  flex: 1;
+  min-width: 0;
+}
+.result-pair {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-pair .vs {
+  color: var(--muted);
+  margin: 0 6px;
+}
+
+.result-score-wrap { text-align: right; flex-shrink: 0; }
+.result-score {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.result-score-sub { font-size: 0.68rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+.verdict-badge {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-HIGH   { background: rgba(240,64,64,0.15);  color: var(--high); }
+.badge-MEDIUM { background: rgba(240,120,32,0.15); color: var(--medium); }
+.badge-LOW    { background: rgba(232,176,32,0.15); color: var(--low); }
+.badge-CLEAR  { background: rgba(48,192,96,0.15);  color: var(--clear); }
+
+.chevron {
+  color: var(--muted);
+  font-size: 0.9rem;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.result-card.open .chevron { transform: rotate(180deg); }
+
+/* ── Score bar row ── */
+.score-bars {
+  padding: 0 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+.score-row-label {
+  width: 60px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+.score-row-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.score-row-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.fill-tfidf  { background: var(--accent); }
+.fill-ngram  { background: var(--accent2); }
+.fill-fuzzy  { background: #06b6d4; }
+.fill-comp   { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.score-row-val {
+  width: 42px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+/* ── Detail drawer ── */
+.result-detail {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 18px 20px;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+.result-card.open .result-detail { display: grid; }
+
+.snippet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.snippet-title {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.snippet-text {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: #b0b8cc;
+}
+
+.common-words {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.common-words span { color: var(--accent); }
+
+/* ── Method cards ── */
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 40px;
+}
+.method-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.method-icon { font-size: 1.5rem; margin-bottom: 10px; }
+.method-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+.method-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+.method-weight {
+  display: inline-block;
+  margin-top: 8px;
+  background: rgba(79,142,247,0.1);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  header { padding: 0 16px; }
+  .container { padding: 0 16px 60px; }
+  .result-detail { grid-template-columns: 1fr; }
+  .result-top { flex-wrap: wrap; gap: 10px; }
+  .verdict-badge { order: -1; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔍</div>
+    <div>
+      <div class="logo-text">PLAGIASCOPE</div>
+      <div class="logo-sub">AI Plagiarism Detector</div>
+    </div>
+  </div>
+  <div class="header-badge">TASK 3 — NLP PIPELINE</div>
+</header>
+
+<div class="hero">
+  <div class="hero-tag">⚡ TF-IDF · N-gram · Fuzzy Matching</div>
+  <h1>Detect Plagiarism<br>with <span>AI-Powered NLP</span></h1>
+  <p>Upload documents or paste text. Our pipeline normalizes, vectorizes, and
+     scores every pair using three independent similarity methods.</p>
+</div>
+
+<div class="container">
+
+  <!-- INPUT PANEL -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="step">1</div>
+      <div class="panel-title">Add Documents to Compare</div>
+    </div>
+    <div class="panel-body">
+
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('upload')">📁 Upload Files</button>
+        <button class="tab-btn"        onclick="switchTab('paste')">✏️ Paste Text</button>
+      </div>
+
+      <!-- Upload tab -->
+      <div id="tab-upload">
+        <div class="drop-zone" id="drop-zone"
+             onclick="document.getElementById('file-input').click()"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)">
+          <input type="file" id="file-input" multiple accept=".txt"
+                 onchange="handleFiles(this.files)"/>
+          <div class="drop-icon">📄</div>
+          <div class="drop-title">Drop .txt files here</div>
+          <div class="drop-sub">or click to browse — minimum 2 files required</div>
+          <button class="drop-btn" onclick="event.stopPropagation(); document.getElementById('file-input').click()">
+            Choose Files
+          </button>
+        </div>
+        <div class="file-list" id="file-list"></div>
+      </div>
+
+      <!-- Paste tab -->
+      <div id="tab-paste" style="display:none">
+        <div class="paste-area" id="paste-area"></div>
+        <button class="add-doc-btn" onclick="addPasteDoc()">+ Add Another Document</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ANALYZE BUTTON -->
+  <div class="error-box" id="error-box"></div>
+  <button class="analyze-btn" id="analyze-btn" onclick="analyze()">
+    🔍 &nbsp; Run Plagiarism Analysis
+  </button>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="scanner">
+      <div class="scanner-ring"></div>
+      <div class="scanner-ring"></div>
+      <div class="scanner-dot"></div>
+    </div>
+    <div class="loading-text">ANALYZING DOCUMENTS...</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+
+    <div class="panel" style="margin-top:32px">
+      <div class="panel-header">
+        <div class="step">2</div>
+        <div class="panel-title">Analysis Results</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="result-meta" id="result-meta"></div>
+        <div class="summary-grid" id="summary-grid"></div>
+
+        <div id="results-list"></div>
+
+      </div>
+    </div>
+
+    <!-- Methodology -->
+    <div class="method-grid">
+      <div class="method-card">
+        <div class="method-icon">🧹</div>
+        <div class="method-title">Text Normalization</div>
+        <div class="method-desc">Lowercase, URL removal, stop-word filtering, Porter stemming.</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">📐</div>
+        <div class="method-title">TF-IDF Cosine</div>
+        <div class="method-desc">Unigram + bigram vectorization, cosine similarity between TF-IDF vectors.</div>
+        <div class="method-weight">Weight: 50%</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">🔗</div>
+        <div class="method-title">N-gram Jaccard</div>
+        <div class="method-desc">Bigram set extraction with Jaccard index. Catches phrase-level copying.</div>
+        <div class="method-weight">Weight: 30%</div>
+      </div>
+      <div class="method-card">
+        <div class="method-icon">🔤</div>
+        <div class="method-title">Fuzzy Matching</div>
+        <div class="method-desc">Token-sort ratio detects paraphrasing and word reordering.</div>
+        <div class="method-weight">Weight: 20%</div>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</div><!-- /container -->
+
+<script>
+// ── State ─────────────────────────────────────────────────
+let uploadedFiles = [];
+let pasteDocCount = 0;
+let activeTab = 'upload';
+
+// ── Tab switching ─────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-upload').style.display = tab === 'upload' ? 'block' : 'none';
+  document.getElementById('tab-paste').style.display  = tab === 'paste'  ? 'block' : 'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'upload') || (i === 1 && tab === 'paste'));
+  });
+  if (tab === 'paste' && pasteDocCount === 0) {
+    addPasteDoc(); addPasteDoc();
+  }
+}
+
+// ── File upload ───────────────────────────────────────────
+function handleFiles(files) {
+  for (const f of files) {
+    if (f.name.endsWith('.txt') && !uploadedFiles.find(u => u.name === f.name)) {
+      uploadedFiles.push(f);
+    }
+  }
+  renderFileList();
+}
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+}
+function removeFile(name) {
+  uploadedFiles = uploadedFiles.filter(f => f.name !== name);
+  renderFileList();
+}
+function renderFileList() {
+  const list = document.getElementById('file-list');
+  list.innerHTML = uploadedFiles.map(f => `
+    <div class="file-item">
+      <span class="file-icon">📄</span>
+      <span class="file-name">${f.name}</span>
+      <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
+      <button class="file-remove" onclick="removeFile('${f.name}')">✕</button>
+    </div>`).join('');
+}
+
+// ── Paste area ────────────────────────────────────────────
+function addPasteDoc() {
+  pasteDocCount++;
+  const id = pasteDocCount;
+  const div = document.createElement('div');
+  div.className = 'paste-doc';
+  div.id = `paste-${id}`;
+  div.innerHTML = `
+    <div class="paste-doc-header">
+      <div class="doc-num">${id}</div>
+      <input class="paste-name-input" name="paste_name[]"
+             placeholder="document_${id}.txt" value="document_${id}.txt"/>
+      ${id > 2 ? `<button class="paste-remove" onclick="removePasteDoc(${id})">✕</button>` : ''}
+    </div>
+    <textarea class="paste-textarea" name="paste_text[]"
+              placeholder="Paste your document text here..."></textarea>`;
+  document.getElementById('paste-area').appendChild(div);
+}
+function removePasteDoc(id) {
+  const el = document.getElementById(`paste-${id}`);
+  if (el) el.remove();
+}
+
+// ── Analyze ───────────────────────────────────────────────
+async function analyze() {
+  hideError();
+  const fd = new FormData();
+
+  if (activeTab === 'upload') {
+    if (uploadedFiles.length < 2) return showError('Please upload at least 2 .txt files.');
+    uploadedFiles.forEach(f => fd.append('files', f));
+  } else {
+    const names  = [...document.querySelectorAll('[name="paste_name[]"]')].map(e => e.value);
+    const texts  = [...document.querySelectorAll('[name="paste_text[]"]')].map(e => e.value.trim());
+    const valid  = texts.filter(t => t.length > 0);
+    if (valid.length < 2) return showError('Please fill in at least 2 document text areas.');
+    names.forEach(n  => fd.append('paste_name[]', n));
+    texts.forEach(t  => fd.append('paste_text[]', t));
+  }
+
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('results').classList.remove('show');
+
+  try {
+    const resp = await fetch('/analyze', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) return showError(data.error || 'Analysis failed.');
+    renderResults(data);
+  } catch(e) {
+    showError('Server error. Make sure Flask is running.');
+  } finally {
+    document.getElementById('analyze-btn').disabled = false;
+    document.getElementById('loading').classList.remove('show');
+  }
+}
+
+// ── Render results ────────────────────────────────────────
+function renderResults(data) {
+  const { results, summary } = data;
+
+  document.getElementById('result-meta').textContent =
+    `▸ ${summary.timestamp}  ·  ${summary.doc_count} documents  ·  ${summary.total} pairs compared  ·  avg similarity: ${summary.avg_score}%`;
+
+  // Summary cards
+  document.getElementById('summary-grid').innerHTML = `
+    <div class="stat-card s-total">
+      <div class="stat-num">${summary.total}</div>
+      <div class="stat-label">Total Pairs</div>
+    </div>
+    <div class="stat-card s-high">
+      <div class="stat-num">${summary.high}</div>
+      <div class="stat-label">High Risk</div>
+    </div>
+    <div class="stat-card s-medium">
+      <div class="stat-num">${summary.medium}</div>
+      <div class="stat-label">Suspicious</div>
+    </div>
+    <div class="stat-card s-low">
+      <div class="stat-num">${summary.low}</div>
+      <div class="stat-label">Low Similarity</div>
+    </div>
+    <div class="stat-card s-clear">
+      <div class="stat-num">${summary.clear}</div>
+      <div class="stat-label">Clear</div>
+    </div>`;
+
+  // Result cards
+  document.getElementById('results-list').innerHTML = results.map((r, i) => `
+    <div class="result-card level-${r.level}" id="card-${i}">
+      <div class="result-top" onclick="toggleCard(${i})">
+        <div class="result-files">
+          <div class="result-pair">
+            ${r.doc_a}<span class="vs">↔</span>${r.doc_b}
+          </div>
+        </div>
+        <span class="verdict-badge badge-${r.level}">${r.label}</span>
+        <div class="result-score-wrap">
+          <div class="result-score" style="color:${r.color}">${r.composite}%</div>
+          <div class="result-score-sub">composite</div>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+
+      <div class="score-bars">
+        ${scoreRow('TF-IDF', r.tfidf, 'fill-tfidf')}
+        ${scoreRow('N-gram', r.ngram, 'fill-ngram')}
+        ${scoreRow('Fuzzy',  r.fuzzy, 'fill-fuzzy')}
+        ${scoreRow('TOTAL',  r.composite, 'fill-comp')}
+      </div>
+
+      <div class="result-detail">
+        <div class="snippet">
+          <div class="snippet-title">📄 ${r.doc_a}</div>
+          <div class="snippet-text">${escHtml(r.snippet_a)}...</div>
+        </div>
+        <div class="snippet">
+          <div class="snippet-title">📄 ${r.doc_b}</div>
+          <div class="snippet-text">${escHtml(r.snippet_b)}...</div>
+        </div>
+        <div class="common-words">
+          🔑 Common normalized terms: <span>${r.common_count} shared words/stems detected</span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function scoreRow(label, val, cls) {
+  return `
+    <div class="score-row">
+      <span class="score-row-label">${label}</span>
+      <div class="score-row-bar">
+        <div class="score-row-fill ${cls}" style="width:${Math.min(val,100)}%"></div>
+      </div>
+      <span class="score-row-val">${val}%</span>
+    </div>`;
+}
+
+function toggleCard(i) {
+  document.getElementById(`card-${i}`).classList.toggle('open');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = '⚠  ' + msg;
+  el.classList.add('show');
+  document.getElementById('loading').classList.remove('show');
+  document.getElementById('analyze-btn').disabled = false;
+}
+function hideError() {
+  document.getElementById('error-box').classList.remove('show');
+}
+</script>
+</body>
+</html>
